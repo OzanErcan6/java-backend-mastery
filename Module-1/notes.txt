@@ -1,0 +1,105 @@
+1.1 Toolchain and ecosystem
+
+JDK ⊃ JRE ⊃ JVM
+
+* JVM: the thing that actually runs bytecode. GC, class loading, threading. It’s the only part that matters at runtime.
+* JRE: JVM + the standard library (java.base etc.). What you need to run an app. (dead)
+* JDK: JRE + dev tools (javac, jlink, jcmd, jstack, jfr, jdb...). What you need to build and diagnose an app.
+
+
+JVM: tune and observe the runtime
+    Pick a GC and tune it: -XX:+UseZGC, -XX:MaxGCPauseMillis, heap sizing with -Xmx / -XX:MaxRAMPercentage
+    Control JIT behavior, e.g. tiered compilation, warmup, code cache size
+    Turn on diagnostics: -Xlog:gc*, -XX:+HeapDumpOnOutOfMemoryError, -XX:NativeMemoryTracking=summary
+    Attach agents (-javaagent) for APM, profilers, bytecode instrumentation
+    Run non-Java languages (Kotlin, Scala, Clojure)
+
+JRE: run things (mostly historical)
+    Execute a jar: java -jar app.jar
+    Run on a machine that only needs to run, not build or debug
+
+JDK: build, package, diagnose
+    Build: javac to compile, jar to package, javadoc
+    Slim down: jlink for a custom runtime, jpackage for native installers
+    Diagnose live processes:
+        jcmd <pid> Thread.print or jstack: thread dumps, deadlocks
+        jcmd <pid> GC.heap_dump or jmap: heap dumps
+        jcmd <pid> JFR.start: Flight Recorder, low-overhead production profiling
+        jstat: GC stats live
+    Inspect: javap to read bytecode, jdeps to find dependencies (useful before jlink)
+    Run single files: java Foo.java (no explicit compile step)
+
+
+
+LTS release cadence
+    Java ships a new version every 6 months (March and September), and every 2 years one of them is designated
+    LTS (Long-Term Support), such as 17, 21, and 25, which gets security and bug-fix updates for years,
+    while non-LTS releases are fully production-quality but only supported for about 6 months until the next
+    release replaces them. In practice, you run an LTS in production and upgrade LTS to LTS (e.g. 17 → 21 → 25),
+    skipping the non-LTS versions, which are best used for trying new features early.
+    The OpenJDK code is the same across vendors (Oracle, Temurin, Corretto, Azul, Red Hat),
+    but each decides how long it back-ports fixes, so check the vendor’s support dates.
+    It matters because frameworks tie minimum Java versions to their releases (Spring Boot 3 needs 17+),
+    old LTS versions like 8 eventually become costly or unsafe to keep running,
+    and security audits will flag an unsupported JDK.
+
+
+
+Option 1: Run with the exec plugin (no JAR needed)
+    mvn clean compile exec:java
+
+Option 2: Make the JAR runnable
+    mvn clean package
+    java -jar .\target\module-1-1.0-SNAPSHOT.jar
+
+
+
+
+
+
+Questions: JDK / JRE / JVM / Build Basics
+
+Fundamentals
+
+1. What’s the difference between JDK, JRE, and JVM?
+JVM runs bytecode. JRE = JVM + standard libraries (to run apps). JDK = JRE + dev tools like javac, jcmd, jlink (to build and diagnose). JDK ⊃ JRE ⊃ JVM.
+
+2. Is Java compiled or interpreted?
+Both. javac compiles source to bytecode. The JVM then interprets that bytecode initially and JIT-compiles hot code paths to native machine code at runtime.
+
+3. What does “write once, run anywhere” actually mean?
+Bytecode is platform-independent. Each OS has its own JVM that translates it to native instructions. You compile once, the .class file runs on any platform with a compatible JVM.
+
+4. What is bytecode?
+The instruction set the JVM executes, stored in .class files. It’s the output of javac. You can inspect it with javap -c.
+
+5. Do I need a JDK or JRE in production?
+Practically a JDK, or a jlink-trimmed runtime. Standalone JREs are no longer shipped. A JDK in prod also gives you jcmd, jstack, and JFR for debugging live issues.
+
+JVM Internals
+
+6. What does the JVM do besides running code?
+Class loading, JIT compilation, garbage collection, thread management, and memory management.
+
+7. What is JIT compilation and why does it matter?
+The JVM watches which methods run frequently (“hot”) and compiles them to optimized native code. It’s why Java apps are slow at startup (warmup) but fast at steady state. It also explains why microbenchmarks without warmup are misleading.
+
+8. Name the JVM memory areas.
+
+Heap: objects, managed by GC
+Metaspace: class metadata (native memory, replaced PermGen in Java 8)
+Thread stacks: one per thread, holds frames and local variables
+Code cache: JIT-compiled code
+Direct buffers: off-heap memory (NIO)
+
+9. Heap vs. stack?
+Heap is shared, holds objects, garbage collected. Stack is per-thread, holds method frames and primitives/references, freed automatically when a method returns.
+
+10. How does garbage collection work, and which GCs exist?
+GC finds objects no longer reachable from GC roots and reclaims them. Main collectors: G1 (default since 9, balanced), ZGC (very low pause, large heaps), Shenandoah (low pause), Parallel (throughput), Serial (tiny apps).
+
+11. What causes OutOfMemoryError, and is it always heap?
+No. It can be heap, metaspace (classloader leaks), direct buffer memory, or “unable to create native thread” (too many threads). The message after the error tells you which.
+
+12. What’s a memory leak in Java if there’s a GC?
+Objects that are still reachable but no longer needed, e.g. static collections that only grow, unclosed listeners, ThreadLocals in thread pools, caches without eviction. GC can’t free what’s still referenced.
