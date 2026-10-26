@@ -1,0 +1,65 @@
+
+* Primitives vs. reference types, stack vs. heap at a conceptual level, pass-by-value semantics
+
+Primitives hold the actual value directly. Reference types hold a pointer (address) to an object on the heap.
+int a = 5;              // 'a' contains 5
+String s = "hi";        // 's' contains a reference -> object on heap
+
+The 8 primitives
+byte, short, int, long, float, double, char, boolean
+Everything else (String, arrays, List, your own classes, enums, records) is a reference type.
+
+PRIMITIVE vs REFERENCE
+
+Holds
+  Primitive: the value itself
+  Reference: the address of an object on the heap
+
+Can be null?
+  Primitive: no
+  Reference: yes
+
+Default value (as a field)
+  Primitive: 0, false, '\u0000'
+  Reference: null
+
+Has methods?
+  Primitive: no
+  Reference: yes
+
+Works in generics (List<int>)?
+  Primitive: no
+  Reference: yes (List<Integer>)
+
+Memory
+  Primitive: small, fixed size, often on the stack
+  Reference: object on heap + a reference variable pointing to it
+
+== compares
+  Primitive: values
+  Reference: identity (same object?)
+
+
+
+Important points
+Pass-by-value, always. Java never passes objects; it passes a copy of the reference.
+A method can mutate the object it points to, but reassigning the parameter doesn’t affect the caller’s variable.
+
+void change(StringBuilder sb, int n) {
+    sb.append("!");   // caller sees this (same object)
+    sb = new StringBuilder("x");  // caller does NOT see this
+    n = 99;           // caller does NOT see this
+}
+
+== vs. .equals(). For references, == checks “same object,” .equals() checks “equal content.”
+Using == on Strings or boxed types is a classic bug.
+
+
+* Autoboxing and unboxing pitfalls (null unboxing, Integer cache, == vs. equals)
+
+
+* Strings: immutability, interning, StringBuilder, text blocks
+
+
+* Arrays, var, operators, control flow, enhanced for, switch expressions
+
